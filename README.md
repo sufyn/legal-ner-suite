@@ -9,8 +9,11 @@ The Legal NER Suite is a comprehensive, AI-powered web application designed to r
 This project addresses critical challenges in the legal domain:
 
 Inefficient & Error-Prone Documentation: Manually drafting FIRs is time-consuming and prone to human error, leading to inconsistencies and delays.
+
 Complex Legal Classification: Accurately identifying relevant IPC/BNS sections for a crime requires deep legal expertise and can be subjective or incorrect.
+
 Lack of Actionable Crime Insights: Traditional methods struggle to provide real-time, visual data on crime patterns, hindering proactive policing and resource allocation.
+
 By automating these processes, the suite enhances efficiency, improves accuracy, and provides valuable analytical insights.
 
 ✨ Key Features
@@ -18,13 +21,17 @@ Named Entity Recognition (NER) & FIR Assistant:
 Extracts critical entities (Petitioner, Accused, Date, Place, Statute, etc.) from unstructured case descriptions.
 Supports text input and voice input (multi-language: English, Hindi, Telugu) for convenience.
 Automatically populates and highlights an editable FIR template.
+
 Automatic FIR Creation (PDF):
 Generates a structured, downloadable FIR document in PDF format based on extracted and user-confirmed data.
+
 IPC/BNS Section Prediction:
 Predicts the overarching "Mega Category" of crime.
 Suggests top relevant IPC/BNS sections using NLP similarity for precise legal classification.
+
 Crime Data Analytics:
 Provides visualizations (e.g., heatmaps) to represent crime density and trends across geographical areas, aiding strategic decision-making.
+
 🛠️ Technical Stack
 Backend: Python 3.9+ (Flask)
 NLP/Machine Learning:
@@ -35,6 +42,7 @@ Potentially: spaCy or Hugging Face Transformers for advanced NER (if custom mode
 Frontend: HTML5, CSS3, JavaScript (Vanilla JS, Web Speech API), Bootstrap 5.x
 PDF Generation: ReportLab (or similar Python library)
 Data Visualization: Matplotlib, Seaborn (for backend plot generation), Folium (for map visualizations)
+
 🚀 Getting Started
 Follow these instructions to set up and run the project locally.
 
