@@ -32,6 +32,12 @@ Suggests top relevant IPC/BNS sections using NLP similarity for precise legal cl
 Crime Data Analytics:
 Provides visualizations (e.g., heatmaps) to represent crime density and trends across geographical areas, aiding strategic decision-making.
 
+
+
+https://github.com/user-attachments/assets/e87dbb53-cf5d-452f-843d-77bdaf564f6f
+
+
+
 🛠️ Technical Stack
 Backend: Python 3.9+ (Flask)
 NLP/Machine Learning:
