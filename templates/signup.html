@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up - Legal Lens</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+          <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+
+    <style>
+        body {
+            background: linear-gradient(135deg, #cfd1df 0%, #222241 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .floating {
+            animation: float 6s ease-in-out infinite;
+        }
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+            100% { transform: translateY(0px); }
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center">
+
+    <div class="container mx-auto px-4">
+        <div class="flex flex-col md:flex-row items-center justify-center gap-8">
+            <!-- 3D Animation Container -->
+            <div class="w-full md:w-1/2 h-[400px] relative">
+                <canvas id="threeCanvas" class="w-full h-full"></canvas>
+            </div>
+
+            <!-- Signup Form -->
+            <div class="w-full md:w-1/2 glass-effect p-8 rounded-2xl">
+                <h2 class="text-3xl font-bold mb-6 text-center">Create Account</h2>
+                {% with messages = get_flashed_messages() %}
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="bg-red-500 text-white p-3 rounded-lg mb-4">{{ message }}</div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+                <form method="POST" action="{{ url_for('signup') }}" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Username</label>
+                        <input type="text" name="username" required
+                            class="w-full px-4 py-2 rounded-lg bg-gray-800 border border-gray-700 focus:border-violet-500 focus:ring-2 focus:ring-violet-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Email</label>
+                        <input type="email" name="email" required
+                            class="w-full px-4 py-2 rounded-lg bg-gray-800 border border-gray-700 focus:border-violet-500 focus:ring-2 focus:ring-violet-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Password</label>
+                        <input type="password" name="password" required
+                            class="w-full px-4 py-2 rounded-lg bg-gray-800 border border-gray-700 focus:border-violet-500 focus:ring-2 focus:ring-violet-500">
+                    </div>
+                    <button type="submit"
+                        class="w-full bg-violet-600 hover:bg-violet-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300">
+                        Sign Up
+                    </button>
+                </form>
+                <p class="mt-4 text-center text-gray-400">
+                    Already have an account? 
+                    <a href="{{ url_for('login') }}" class="text-violet-400 hover:text-violet-300">Login</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script>
+        // Three.js setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('threeCanvas'), alpha: true });
+        renderer.setSize(document.querySelector('#threeCanvas').parentElement.clientWidth, 
+                        document.querySelector('#threeCanvas').parentElement.clientHeight);
+
+        // Create a complex geometry
+        const geometry = new THREE.OctahedronGeometry(1.5, 0);
+        const material = new THREE.MeshPhongMaterial({
+            color: 0x6d28d9,
+            shininess: 100,
+            transparent: true,
+            opacity: 0.8,
+            wireframe: true
+        });
+        const octahedron = new THREE.Mesh(geometry, material);
+        scene.add(octahedron);
+
+        // Add lights
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+
+        const pointLight = new THREE.PointLight(0xffffff, 1);
+        pointLight.position.set(5, 5, 5);
+        scene.add(pointLight);
+
+        camera.position.z = 5;
+
+        // Animation
+        function animate() {
+            requestAnimationFrame(animate);
+            octahedron.rotation.x += 0.01;
+            octahedron.rotation.y += 0.01;
+            renderer.render(scene, camera);
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            const width = document.querySelector('#threeCanvas').parentElement.clientWidth;
+            const height = document.querySelector('#threeCanvas').parentElement.clientHeight;
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+        });
+
+        animate();
+    </script>
+</body>
+</html> 

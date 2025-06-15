@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Legal NER Suite</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet">
+          <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+
+    <style>
+        body {
+            background: linear-gradient(135deg, #d1d4d9, #2a5298);
+            color: white;
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
+        }
+        .container { margin-top: 30px; }
+        .animate__fadeIn { animation: fadeIn 1s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .error { color: #ff4d4d; }
+        .mic-btn { cursor: pointer; font-size: 1.5rem; margin-left: 10px; }
+        .mic-btn.recording { color: red; }
+        .highlighted-text { background: #fff; color: #333; padding: 15px; border-radius: 5px; }
+        .ql-container { min-height: 200px; }
+        #pdf-preview { height: 600px; width: 100%; }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+       <a href="index.html" class="logo">
+            <i class="fas fa-balance-scale"></i>
+            LEGAL NER SUITE
+       </a>
+        <div class="nav-links">
+            <!-- <a href="login.html">Login</a> -->
+            
+      {% if current_user.is_authenticated %}
+        <a class="btn-getstarted" href="{{ url_for('logout') }}">Logout</a>
+      {% else %}
+        <a class="btn-getstarted" href="{{ url_for('login') }}">Login</a>
+      {% endif %}
+
+            <a href="{{ url_for('ner') }}" class="btn">Home</a>
+        </div>
+    </nav>
+
+    <div class="container animate__fadeIn">
+        <h1 class="text-center mb-4">Legal NER Suite</h1>
+        <div class="card mb-3 p-3" style="background: #ffffff; color: #333;">
+            <h4>ℹ️ How to Use</h4>
+            <p>
+                - <strong>FIR Assistant</strong>: Enter a case description to extract entities for FIR filing. Download as JSON or PDF.<br>
+                - <strong>Legal Research</strong>: Input a query to extract keywords and find similar cases. Filter by court type.<br>
+                - <strong>Case Prediction</strong>: Describe an incident to predict applicable BNS/IPC sections and punishments.<br>
+                - <strong>Supported Entities</strong>: COURT, PETITIONER, RESPONDENT, JUDGE, LAWYER, DATE, ORG, GPE, STATUTE, PROVISION, PRECEDENT, CASE_NUMBER, WITNESS, OTHER_PERSON
+            </p>
+        </div>
+        <ul class="nav nav-tabs">
+            <li class="nav-item"><a class="nav-link {% if active_tab == 'fir' %}active{% endif %}" href="#fir" data-bs-toggle="tab">FIR Assistant</a></li>
+            <!-- <li class="nav-item"><a class="nav-link {% if active_tab == 'research' %}active{% endif %}" href="#research" data-bs-toggle="tab">Legal Research</a></li> -->
+            <!-- <li class="nav-item"><a class="nav-link {% if active_tab == 'predict' %}active{% endif %}" href="#predict" data-bs-toggle="tab">Case Prediction</a></li>
+            <li class="nav-item"><a class="nav-link {% if active_tab == 'analysis' %}active{% endif %}" href="#analysis" data-bs-toggle="tab">Analysis</a></li> -->
+                 <a href="{{ url_for('analysis') }}" class="btn btn-primary">Go to Analysis</a>
+
+        </ul>
+        <div class="tab-content mt-3">
+            <div class="tab-pane {% if active_tab == 'fir' %}active{% endif %}" id="fir">
+                <div class="card p-4" style="background: #ffffff; color: #333;">
+                    <h3>FIR Assistant</h3>
+                    <form method="POST" enctype="multipart/form-data">
+                        <input type="hidden" name="active_tab" value="fir">
+                        <div class="mb-3">
+                            <label class="form-label">Input Type</label>
+                            <select class="form-select" name="input_type" id="input-type">
+                                <option value="text">Text Input</option>
+                                <option value="file">JSON File Upload</option>
+                            </select>
+                        </div>
+                        <div class="mb-3" id="text-input">
+                            <label for="description" class="form-label">Case Description</label>
+                            <div class="d-flex align-items-start">
+                                <textarea class="form-control" id="description" name="description" rows="5">{{ fir_template.Description if fir_template else '' }}</textarea>
+                                <i class="bi bi-mic mic-btn" id="mic-btn"></i>
+                            </div>
+                            <select class="form-select mt-2" id="language">
+                                {% for lang in language_options %}
+                                    <option value="{{ lang.code }}">{{ lang.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3" id="file-input" style="display: none;">
+                            <label for="file" class="form-label">Upload JSON File</label>
+                            <input type="file" class="form-control" id="file" name="file" accept=".json">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Extract Entities</button>
+                    </form>
+                    {% if error and active_tab == 'fir' %}
+                        <p class="error mt-3">{{ error }}</p>
+                    {% endif %}
+                    {% if results and active_tab == 'fir' %}
+                        <h3>Extracted Entities</h3>
+                        <ul>
+                            {% for result in results %}
+                                <li><strong>{{ result.entity_group }}</strong>: {{ result.word }} (Score: {{ '%.2f' % result.score }})</li>
+                            {% endfor %}
+                        </ul>
+                        {% if highlighted_text %}
+                            <h3>Highlighted Text</h3>
+                            <div class="highlighted-text">{{ highlighted_text | safe }}</div>
+                        {% endif %}
+                        {% if fir_template %}
+                            <h3>Edit FIR Template</h3>
+                            <form id="fir-form" action="/finalize_fir" method="POST">
+                                <input type="hidden" name="record_id" value="{{ record_id }}">
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="petitioner" class="form-label">Petitioner</label>
+                                        <input type="text" class="form-control" id="petitioner" name="petitioner" value="{{ fir_template.Petitioner }}">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="address" class="form-label">Address</label>
+                                        <input type="text" class="form-control" id="address" name="address" value="{{ fir_template.Address | default('N/A') }}">
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="organization" class="form-label">Organization</label>
+                                        <input type="text" class="form-control" id="organization" name="organization" value="{{ fir_template.Organization }}">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="date" class="form-label">Date of Incident</label>
+                                        <input type="text" class="form-control" id="date" name="date" value="{{ fir_template.Date }}">
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="place" class="form-label">Place of Incident</label>
+                                        <input type="text" class="form-control" id="place" name="place" value="{{ fir_template.Place }}">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="court" class="form-label">Court</label>
+                                        <select class="form-select" id="court" name="court">
+                                            {% for option in court_options %}
+                                                <option value="{{ option }}" {% if option == fir_template.Court %}selected{% endif %}>{{ option }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="accused" class="form-label">Accused</label>
+                                        <input type="text" class="form-control" id="accused" name="accused" value="{{ fir_template.Accused }}">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="offense" class="form-label">Offense/Statute (BNS)</label>
+                                        <select class="form-select" id="offense" name="offense" multiple>
+                                            {% for option in section_options %}
+                                                {% if option.startswith('3') %}
+                                                    <option value="{{ option }}" {% if option in fir_template.Offense %}selected{% endif %}>{{ option }}</option>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </select>
+                                        {% if fir_template.PredictedSections %}
+                                            <small class="form-text text-muted">Predicted: {{ fir_template.PredictedSections | selectattr(0, 'startswith', '3') | map(attribute=0) | join(', ') }} (Probabilities: {{ fir_template.PredictedSections | selectattr(0, 'startswith', '3') | map(attribute=1) | map('format', '%.2f') | join(', ') }})</small>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="provision" class="form-label">Provision (IPC)</label>
+                                        <select class="form-select" id="provision" name="provision" multiple>
+                                            {% for option in section_options %}
+                                                {% if option.startswith('4') %}
+                                                    <option value="{{ option }}" {% if option in fir_template.Provision %}selected{% endif %}>{{ option }}</option>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </select>
+                                        {% if fir_template.PredictedSections %}
+                                            <small class="form-text text-muted">Predicted: {{ fir_template.PredictedSections | selectattr(0, 'startswith', '4') | map(attribute=0) | join(', ') }} (Probabilities: {{ fir_template.PredictedSections | selectattr(0, 'startswith', '4') | map(attribute=1) | map('format', '%.2f') | join(', ') }})</small>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="case_number" class="form-label">Case Number</label>
+                                        <input type="text" class="form-control" id="case_number" name="case_number" value="{{ fir_template.CaseNumber }}">
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="precedent" class="form-label">Precedent</label>
+                                        <input type="text" class="form-control" id="precedent" name="precedent" value="{{ fir_template.Precedent }}">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="judge" class="form-label">Judge</label>
+                                        <input type="text" class="form-control" id="judge" name="judge" value="{{ fir_template.Judge }}">
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="lawyer" class="form-label">Lawyer</label>
+                                        <input type="text" class="form-control" id="lawyer" name="lawyer" value="{{ fir_template.Lawyer }}">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="witness" class="form-label">Witness</label>
+                                        <div id="witness-container">
+                                            <input type="text" class="form-control mb-2" name="witness" value="{{ fir_template.Witness }}">
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addField('witness')">Add Witness</button>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="other_person" class="form-label">Other Person</label>
+                                        <div id="other-person-container">
+                                            <input type="text" class="form-control mb-2" name="other_person" value="{{ fir_template.OtherPerson }}">
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addField('other_person')">Add Other Person</button>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="description" class="form-label">Description</label>
+                                    <div id="description-editor">{{ fir_template.Description | safe }}</div>
+                                    <input type="hidden" id="description" name="description">
+                                </div>
+                                <button type="submit" class="btn btn-primary">Save and Finalize</button>
+                                {% if json_href %}
+                                    <a href="{{ json_href }}" download="ner_results.json" class="btn btn-primary">Download JSON</a>
+                                {% endif %}
+                                {% if pdf_href %}
+                                    <a href="{{ pdf_href }}" download="fir_template.pdf" class="btn btn-primary">Download PDF</a>
+                                {% endif %}
+                            </form>
+                            {% if pdf_href %}
+                                <h3>PDF Preview</h3>
+                                <iframe id="pdf-preview" src="{{ pdf_href }}"></iframe>
+                            {% endif %}
+                            {% if plot_html %}
+                                <h3>Entity Distribution</h3>
+                                <div>{{ plot_html | safe }}</div>
+                            {% endif %}
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+            <div class="tab-pane {% if active_tab == 'research' %}active{% endif %}" id="research">
+                <div class="card p-4" style="background: #ffffff; color: #333;">
+                    <h3>Legal Research Engine</h3>
+                    <form method="POST">
+                        <input type="hidden" name="active_tab" value="research">
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Case or Legal Query</label>
+                            <div class="d-flex align-items-start">
+                                <textarea class="description" id="description" name="description" class="form-control" rows="description">{{ rows==5 }}</textarea>
+                                <i id="form" class="bi bi-mic mic-btn"></i>
+                            </div>
+                            <select id="mic-btn" class="hidden" name="hidden">
+                                {% for lang in language_options %}
+                                <option value="{{ lang }}">{{ lang.name }}</option>
+                                {% endfor %}
+                            </select>
+                            </div>
+                        <div class="mb-3">
+                            <label for="court_filter" class="form-label">Filter by Court</label>
+                            <select class="form-control" id="Court" name="court_filter">
+                                <option value="All">All</option>
+                                {% for option in court_options %}
+                                <option value="{{ option }}">{{ option }}</option>
+                                {% endfor %}
+                            </select>
+                            </div>
+                        <button type="submit" class="btn btn-primary">Extract Keywords & Search Cases</button>
+                    </form>
+                    {% if error and active_tab == 'research' %}
+                        <p class="error mt-3">{{ error }}</p>
+                    {% endif %}
+                    {% if keywords %}
+                        <h3>Extracted Legal Keywords</h3>
+                        <p>{{ keywords | join(', ') }}</p>
+                        {% if plot_html %}
+                            <h3>Keyword Distribution</h3>
+                            <div>{{ plot_html | safe }}</div>
+                        {% endif %}
+                    {% endif %}
+                    {% if similar_cases %}
+                        <h3>Similar Cases</h3>
+                        {% for case in top_cases %}
+                          similar_cases  %}
+                            <p><strong>{{ loop.index }}. {{ case.title }}</strong> ({{ case.court }})</p>                            <p>{{ case.text | truncate(400, True) }}</p>
+                        {% endfor %}
+                        {% if json_href %}
+                            <a href="{% if json_href %}" download="research_results.json_href" class="btn btn-primary">Download JSON</a>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="tab-pane {% if active_tab == 'analysis' %}active{% endif %}" id="analysis">
+                <!-- send the user to analysis html page -->
+                 <a href="{{ url_for('analysis') }}" class="btn btn-primary">Go to Analysis</a>
+
+            </div>
+            
+            <div class="tab-pane {% if active_tab == 'predict' %}active{% endif %}" id="predict">
+                <div class="card p-4" style="background: #ffffff; color: #333;">
+                    <h3>Case Outcome Prediction</h3>
+                    <p>Predict likely BNS/IPC Section and Punishment based on incident description</p>
+                    <form method="POST">
+                        <input type="hidden" name="active_tab" value="predict">
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Incident Description</label>
+                            <div class="d-flex align-items-start">
+                                <textarea class="form-control" id="description" name="description" rows="5">{{ description }}</textarea>
+                                <i class="bi bi-mic mic-btn" id="mic-btn"></i>
+                            </div>
+                            <select class="form-select mt-2" id="language">
+                                {% for lang in language_options %}
+                                    <option value="{{ lang.code }}">{{ lang.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Predict Outcome</button>
+                    </form>
+                    {% if error and active_tab == 'predict' %}
+                        <p class="error mt-3">{{ error }}</p>
+                    {% endif %}
+                    {% if predictions %}
+                        <h3>Predicted Outcome</h3>
+                        {% for pred in predictions %}
+                            <p><strong>Section:</strong> {{ pred.section }} ({{ pred.name }})</p>
+                            <p><strong>Punishment:</strong> {{ pred.punishment }}</p>
+                            <p><strong>Probability:</strong> {{ '%.2f' % pred.score }}</p>
+                        {% endfor %}
+                        {% if json_href %}
+                            <a href="{{ json_href }}" download="prediction_results.json" class="btn btn-primary">Download JSON</a>
+                        {% endif %}
+
+                        {% endif %}
+                        
+                        {% endif %}
+
+
+
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js"></script>
+    <script>
+        const quill = new Quill('#description-editor', {
+            theme: 'snow',
+            modules: {
+                toolbar: [
+                    ['bold', 'italic', 'underline'],
+                    ['link', 'blockquote'],
+                    [{ 'list': 'ordered' }, { 'list': 'bullet' }]
+                ]
+            }
+        });
+        document.getElementById('fir-form').onsubmit = function() {
+            document.getElementById('description').value = quill.root.innerHTML;
+        };
+        function addField(fieldName) {
+            const container = document.getElementById(`${fieldName}-container`);
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'form-control mb-2';
+            input.name = fieldName;
+            container.appendChild(input);
+        }
+        document.getElementById('input-type').addEventListener('change', function() {
+            document.getElementById('text-input').style.display = this.value === 'text' ? 'block' : 'none';
+            document.getElementById('file-input').value === 'none' ? 'block' : 'none';
+        });
+        const micBtn = document.getElementById('mic-btn');
+        const description = document.getElementById('description');
+        const languageSelect = document.getElementById('language');
+        let recognition;
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in recognition) {
+            recognition.continuous = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            recognition.continuous = false;
+            recognition.interimResults = true;
+            micBtn.addEventListener('click', () => {
+                if (micBtn.classList.contains('recording')) {
+                    recognition.stop();
+                } else {
+                    recognition.lang = languageSelect.value;
+                    recognition.start();
+                    micBtn.classList.add('recording');
+                }
+            });
+            recognition.onresult = (event) => {
+                let interimTranscript = '';
+                let finalTranscript = '';
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript;
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
+                    }
+                }
+                description.value = finalTranscript + interimTranscript;
+            };
+            recognition.onend = () => {
+                micBtn.classList.remove('recording');
+            };
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                micBtn.classList.classList.remove('recording');
+                alert('Speech recognition error: ' + event.error);
+            };
+        } else {
+            micBtn.style.display = 'none';
+            alert('Speech recognition not supported in this browser.');
+        }
+    </script>
+</body>
+</html>

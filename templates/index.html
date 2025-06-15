@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Legal NER Suite</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+       <a href="index.html" class="logo">
+            <i class="fas fa-balance-scale"></i>
+            LEGAL NER SUITE
+       </a>
+        <div class="nav-links">
+            <!-- <a href="login.html">Login</a> -->
+            
+      {% if current_user.is_authenticated %}
+        <a class="btn-getstarted" href="{{ url_for('logout') }}">Logout</a>
+      {% else %}
+        <a class="btn-getstarted" href="{{ url_for('login') }}">Login</a>
+      {% endif %}
+
+            <a href="{{ url_for('signup') }}" class="btn">Get Started</a>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="section hero-section">
+        <div class="hero-content">
+            <div class="hero-text">
+                <h1>Legal NER Suite</h1>
+                <h2>Empower your role in justice. AI-powered legal automation for every profession.</h2>
+                <p>Streamline police investigations and legal research with intelligent tools for FIR drafting, case prediction, and comprehensive legal analysis powered by advanced NLP technology.</p>
+                <div class="hero-buttons">
+                    <button class="btn-primary" onclick="window.location.href='signup.html'">Get Started</button>
+                    <button class="btn-secondary" onclick="window.location.href='login.html'">Login</button>
+                </div>
+            </div>
+            <div class="legal-analytics card animate-analytics">
+                <h3>Legal Analytics</h3>
+                <p>AI-Powered Insights</p>
+                <div style="margin: 10px 0;">
+                    <p>Case Analysis <span class="confidence">94%</span></p>
+                    <div style="background: #ddd; height: 5px; border-radius: 5px;"><div style="background: #a3a0fb; width: 94%; height: 100%; border-radius: 5px;"></div></div>
+                </div>
+                <div style="margin: 10px 0;">
+                    <p>Section Prediction <span class="confidence">89%</span></p>
+                    <div style="background: #ddd; height: 5px; border-radius: 5px;"><div style="background: #00c4b4; width: 89%; height: 100%; border-radius: 5px;"></div></div>
+                </div>
+                <div style="margin: 10px 0;">
+                    <p>Document Processing <span class="confidence">96%</span></p>
+                    <div style="background: #ddd; height: 5px; border-radius: 5px;"><div style="background: #00c4b4; width: 96%; height: 100%; border-radius: 5px;"></div></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="section">
+        <h1>POWERFUL FEATURES FOR LEGAL PROFESSIONALS</h1>
+        <p>Streamline your workflow with specialized tools designed for police officers and legal researchers</p>
+        <div style="display: flex; justify-content: center; gap: 20px;">
+            <div class="card" style="width: 300px;">
+                <h3>Police Officers</h3>
+                <p>Law Enforcement Tools</p>
+                <div style="margin: 10px 0;">
+                    <p><i class="fas fa-file-alt"></i> FIR Drafting Assistant</p>
+                    <p>AI-powered FIR generation with NER entity recognition and intelligent suggestions</p>
+                </div>
+                <div style="margin: 10px 0;">
+                    <p><i class="fas fa-balance-scale"></i> BNS/IPC Prediction</p>
+                    <p>Automatic section prediction with detailed punishment information and confidence scores</p>
+                </div>
+            </div>
+            <div class="card" style="width: 300px;">
+                <h3>Legal Researchers</h3>
+                <p>Research & Analytics</p>
+                <div style="margin: 10px 0;">
+                    <p><i class="fas fa-search"></i> Legal Research</p>
+                    <p>Find similar cases across Supreme Court, High Court databases with intelligent matching</p>
+                </div>
+                <div style="margin: 10px 0;">
+                    <p><i class="fas fa-balance-scale"></i> Case Prediction</p>
+                    <p>Predict applicable sections with confidence scores and comprehensive analysis</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials Section -->
+    <section class="section">
+        <h1>TRUSTED BY LEGAL PROFESSIONALS</h1>
+        <div style="display: flex; justify-content: center; gap: 20px;">
+            <div class="card" style="width: 300px;">
+                <p>★★★★★</p>
+                <p>"This tool cut our FIR writing time in half. The AI predictions are incredibly accurate and help us focus on investigation rather than paperwork."</p>
+                <p><i class="fas fa-shield-alt"></i> Officer Singh, Delhi Police</p>
+            </div>
+            <div class="card" style="width: 300px;">
+                <p>★★★★★</p>
+                <p>"The case research feature is a game-changer. Finding relevant precedents across multiple court databases has never been easier."</p>
+                <p><i class="fas fa-brain"></i> Dr. Priya Sharma, Legal Research Institute</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="footer">
+        <h1>READY TO TRANSFORM YOUR LEGAL WORKFLOW?</h1>
+        <p>Join thousands of legal professionals already using LEGAL NER Suite to streamline their work</p>
+        <button class="btn-primary">Get Started Today</button>
+        <p>LEGAL NER SUITE © 2025 • ALL RIGHTS RESERVED • Built with <i class="fas fa-heart"></i></p>
+    </section>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LegalEye: FIR Heatmap & Analytics</title>
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <!-- Google Fonts -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap">
+      <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+
+      <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #e0e7ff, #f4f4f9);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      background: #ffffff;
+      padding: 20px;
+      text-align: center;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    header h1 {
+      color: #1e3a8a;
+      font-size: 2.2rem;
+      font-weight: 600;
+    }
+    header p {
+      color: #64748b;
+      font-size: 1rem;
+      margin-top: 5px;
+    }
+    #fir-count {
+      font-size: 1.2rem;
+      text-align: center;
+      margin: 20px 0;
+      color: #1e3a8a;
+      font-weight: 600;
+    }
+    .grid-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      max-width: 1300px;
+      margin: 0 auto;
+      padding: 0 20px;
+    }
+    .grid-item {
+      background: #ffffff;
+      padding: 25px;
+      border-radius: 15px;
+      box-shadow: 0 6px 15px rgba(0, 0, 0, 0.08);
+      transition: transform 0.3s ease;
+    }
+    .grid-item:hover {
+      transform: translateY(-5px);
+    }
+    #map {
+      height: 500px;
+      width: 100%;
+      border-radius: 10px;
+      border: 2px solid #e2e8f0;
+    }
+    #crime-chart {
+      width: 100%;
+      height: 400px;
+    }
+    #location-insights {
+      grid-column: span 2;
+      margin-bottom: 30px;
+    }
+    h2 {
+      margin-bottom: 20px;
+      color: #1e3a8a;
+      text-align: center;
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+    .insights-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    .insights-table th, .insights-table td {
+      padding: 12px;
+      text-align: center;
+      border: 1px solid #e2e8f0;
+    }
+    .insights-table th {
+      background: #1e3a8a;
+      color: white;
+      font-weight: 600;
+    }
+    .insights-table td {
+      background: #f8fafc;
+      color: #64748b;
+    }
+    footer {
+      background: #ffffff;
+      padding: 15px;
+      text-align: center;
+      color: #64748b;
+      font-size: 0.9rem;
+      margin-top: auto;
+      box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+    }
+    @media (max-width: 768px) {
+      .grid-container {
+        grid-template-columns: 1fr;
+      }
+      #map {
+        height: 400px;
+      }
+      #crime-chart {
+        height: 300px;
+      }
+      #location-insights {
+        grid-column: span 1;
+      }
+    }
+  </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+       <a href="index.html" class="logo">
+            <i class="fas fa-balance-scale"></i>
+            LEGAL NER SUITE
+       </a>
+        <div class="nav-links">
+            <!-- <a href="login.html">Login</a> -->
+
+      {% if current_user.is_authenticated %}
+        <a class="btn-getstarted" href="{{ url_for('logout') }}">Logout</a>
+      {% else %}
+        <a class="btn-getstarted" href="{{ url_for('login') }}">Login</a>
+      {% endif %}
+
+            <a href="{{ url_for('ner') }}" class="btn">Home</a>
+        </div>
+    </nav>
+
+  <header>
+    <h1>LegalEye: FIR Heatmap & Analytics</h1>
+    <p>Visualizing Crime Patterns in Hyderabad for Smarter Legal Insights</p>
+  </header>
+
+  <p id="fir-count">Total FIRs: 0</p>
+
+  <div class="grid-container">
+    <div class="grid-item">
+      <h2>FIR Density Heatmap</h2>
+      <div id="map"></div>
+    </div>
+    <div class="grid-item">
+      <h2>Crime Rate Distribution</h2>
+      <canvas id="crime-chart"></canvas>
+    </div>
+    <div class="grid-item" id="location-insights">
+      <h2>Top 5 Crime-Prone Locations</h2>
+      <table class="insights-table">
+        <thead>
+          <tr>
+            <th>Location</th>
+            <th>Total FIRs</th>
+            <th>Dominant Crime Type</th>
+          </tr>
+        </thead>
+        <tbody id="insights-table-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <footer>
+    <p>Presented by Team LegalEye | Hackathon 2025</p>
+  </footer>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- Leaflet.heat Plugin -->
+  <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+  <script>
+    // Initialize the map (centered on Hyderabad, India)
+    const map = L.map('map').setView([17.3850, 78.4867], 13);
+
+    // Add OpenStreetMap tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    // Define crime types globally
+    const crimeTypes = ["Theft", "Robbery", "Assault", "Fraud"];
+
+    // Lookup table for mapping coordinates to Hyderabad location names (simulated reverse geocoding)
+    const locationMapping = [
+      { center: { lat: 17.3850, lng: 78.4867 }, name: "Banjara Hills", radius: 0.02 },
+      { center: { lat: 17.3870, lng: 78.4880 }, name: "Jubilee Hills", radius: 0.02 },
+      { center: { lat: 17.3830, lng: 78.4840 }, name: "Panjagutta", radius: 0.02 },
+      { center: { lat: 17.3800, lng: 78.4830 }, name: "Somajiguda", radius: 0.02 },
+      { center: { lat: 17.3890, lng: 78.4910 }, name: "Madhapur", radius: 0.02 },
+      { center: { lat: 17.4290, lng: 78.4130 }, name: "Hitech City", radius: 0.02 },
+      { center: { lat: 17.4710, lng: 78.4290 }, name: "Kukatpally", radius: 0.02 }
+    ];
+
+    // Function to map coordinates to a location name
+    function getLocationName(lat, lng) {
+      for (let loc of locationMapping) {
+        const dist = Math.sqrt(
+          Math.pow(lat - loc.center.lat, 2) +
+          Math.pow(lng - loc.center.lng, 2)
+        );
+        if (dist < loc.radius) {
+          return loc.name;
+        }
+      }
+      return "Unknown Location"; // Fallback for unmapped coordinates
+    }
+
+    // Extended dummy FIR dataset for initial load (40 FIRs, distributed across Hyderabad)
+    let firData = [
+      // Banjara Hills (17.3850, 78.4867)
+      { lat: 17.3850, lng: 78.4867, intensity: 1, crimeType: "Theft" },
+      { lat: 17.3845, lng: 78.4860, intensity: 1, crimeType: "Theft" },
+      { lat: 17.3855, lng: 78.4870, intensity: 1, crimeType: "Assault" },
+      { lat: 17.3860, lng: 78.4865, intensity: 1, crimeType: "Robbery" },
+      { lat: 17.3840, lng: 78.4875, intensity: 1, crimeType: "Fraud" },
+
+      // Jubilee Hills (17.3870, 78.4880)
+      { lat: 17.3870, lng: 78.4880, intensity: 1, crimeType: "Robbery" },
+      { lat: 17.3875, lng: 78.4875, intensity: 1, crimeType: "Robbery" },
+      { lat: 17.3865, lng: 78.4885, intensity: 1, crimeType: "Theft" },
+      { lat: 17.3880, lng: 78.4870, intensity: 1, crimeType: "Assault" },
+      { lat: 17.3872, lng: 78.4882, intensity: 1, crimeType: "Fraud" },
+      { lat: 17.3868, lng: 78.4878, intensity: 1, crimeType: "Theft" },
+
+      // Panjagutta (17.3830, 78.4840)
+      { lat: 17.3830, lng: 78.4840, intensity: 1, crimeType: "Assault" },
+      { lat: 17.3825, lng: 78.4845, intensity: 1, crimeType: "Assault" },
+      { lat: 17.3835, lng: 78.4835, intensity: 1, crimeType: "Theft" },
+      { lat: 17.3828, lng: 78.4842, intensity: 1, crimeType: "Fraud" },
+      { lat: 17.3832, lng: 78.4838, intensity: 1, crimeType: "Robbery" },
+      { lat: 17.3820, lng: 78.4850, intensity: 1, crimeType: "Theft" },
+
+      // Somajiguda (17.3800, 78.4830)
+      { lat: 17.3800, lng: 78.4830, intensity: 1, crimeType: "Theft" },
+      { lat: 17.3805, lng: 78.4825, intensity: 1, crimeType: "Assault" },
+      { lat: 17.3795, lng: 78.4835, intensity: 1, crimeType: "Fraud" },
+      { lat: 17.3802, lng: 78.4832, intensity: 1, crimeType: "Robbery" },
+
+      // Madhapur (17.3890, 78.4910)
+      { lat: 17.3890, lng: 78.4910, intensity: 1, crimeType: "Fraud" },
+      { lat: 17.3895, lng: 78.4905, intensity: 1, crimeType: "Theft" },
+      { lat: 17.3885, lng: 78.4915, intensity: 1, crimeType: "Assault" },
+      { lat: 17.3892, lng: 78.4908, intensity: 1, crimeType: "Robbery" },
+      { lat: 17.3888, lng: 78.4912, intensity: 1, crimeType: "Fraud" },
+
+      // Hitech City (17.4290, 78.4130)
+      { lat: 17.4290, lng: 78.4130, intensity: 1, crimeType: "Theft" },
+      { lat: 17.4285, lng: 78.4135, intensity: 1, crimeType: "Robbery" },
+      { lat: 17.4295, lng: 78.4125, intensity: 1, crimeType: "Assault" },
+      { lat: 17.4288, lng: 78.4132, intensity: 1, crimeType: "Fraud" },
+      { lat: 17.4292, lng: 78.4128, intensity: 1, crimeType: "Theft" },
+      { lat: 17.4280, lng: 78.4140, intensity: 1, crimeType: "Robbery" },
+
+      // Kukatpally (17.4710, 78.4290)
+      { lat: 17.4710, lng: 78.4290, intensity: 1, crimeType: "Assault" },
+      { lat: 17.4705, lng: 78.4295, intensity: 1, crimeType: "Theft" },
+      { lat: 17.4715, lng: 78.4285, intensity: 1, crimeType: "Fraud" },
+      { lat: 17.4708, lng: 78.4292, intensity: 1, crimeType: "Robbery" },
+      { lat: 17.4712, lng: 78.4288, intensity: 1, crimeType: "Assault" },
+      { lat: 17.4700, lng: 78.4300, intensity: 1, crimeType: "Theft" },
+      { lat: 17.4718, lng: 78.4298, intensity: 1, crimeType: "Fraud" }
+    ];
+
+    let heatLayer = null;
+    let crimeChart = null;
+    let previousDataLength = firData.length;
+
+    // Function to calculate crime-prone locations
+    function getCrimeHotspots(data) {
+      // Simple clustering: Group FIRs within a 0.01-degree radius (approx. 1 km)
+      const clusters = [];
+      const radius = 0.01; // Approx. 1 km in degrees
+
+      data.forEach(fir => {
+        let foundCluster = false;
+        for (let cluster of clusters) {
+          const dist = Math.sqrt(
+            Math.pow(fir.lat - cluster.center.lat, 2) +
+            Math.pow(fir.lng - cluster.center.lng, 2)
+          );
+          if (dist < radius) {
+            cluster.firs.push(fir);
+            // Update cluster center (average coordinates)
+            cluster.center.lat = cluster.firs.reduce((sum, f) => sum + f.lat, 0) / cluster.firs.length;
+            cluster.center.lng = cluster.firs.reduce((sum, f) => sum + f.lng, 0) / cluster.firs.length;
+            foundCluster = true;
+            break;
+          }
+        }
+        if (!foundCluster) {
+          clusters.push({
+            center: { lat: fir.lat, lng: fir.lng },
+            firs: [fir]
+          });
+        }
+      });
+
+      // Analyze each cluster
+      const hotspots = clusters.map(cluster => {
+        const crimeCounts = { Theft: 0, Robbery: 0, Assault: 0, Fraud: 0 };
+        cluster.firs.forEach(fir => {
+          crimeCounts[fir.crimeType]++;
+        });
+        // Find dominant crime type
+        let dominantCrime = crimeTypes.reduce((a, b) => crimeCounts[a] > crimeCounts[b] ? a : b);
+        // Map the cluster center to a location name
+        const locationName = getLocationName(cluster.center.lat, cluster.center.lng);
+        return {
+          location: locationName,
+          totalFirs: cluster.firs.length,
+          dominantCrime: dominantCrime
+        };
+      });
+
+      // Sort by total FIRs and take top 5
+      return hotspots.sort((a, b) => b.totalFirs - a.totalFirs).slice(0, 5);
+    }
+
+    // Function to update the heatmap, bar chart, and location insights
+    function updateVisualizations(data) {
+      // Update total FIR count
+      document.getElementById('fir-count').innerText = `Total FIRs: ${data.length}`;
+
+      // Update heatmap
+      if (heatLayer) {
+        map.removeLayer(heatLayer);
+      }
+      const heatmapData = data.map(fir => [fir.lat, fir.lng, fir.intensity]);
+      heatLayer = L.heatLayer(heatmapData, {
+        radius: 25,
+        blur: 15,
+        maxZoom: 17,
+        gradient: {
+          0.2: 'blue',
+          0.4: 'cyan',
+          0.6: 'lime',
+          0.8: 'yellow',
+          1.0: 'red'
+        }
+      }).addTo(map);
+
+      // Update bar chart
+      const crimeCounts = { Theft: 0, Robbery: 0, Assault: 0, Fraud: 0 };
+      data.forEach(fir => {
+        crimeCounts[fir.crimeType]++;
+      });
+      const chartData = crimeTypes.map(type => crimeCounts[type]);
+      const ctx = document.getElementById('crime-chart').getContext('2d');
+      if (crimeChart) {
+        crimeChart.destroy();
+      }
+      crimeChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: crimeTypes,
+          datasets: [{
+            label: 'Number of FIRs',
+            data: chartData,
+            backgroundColor: [
+              'rgba(255, 107, 107, 0.7)',  // Theft
+              'rgba(77, 171, 247, 0.7)',  // Robbery
+              'rgba(255, 202, 75, 0.7)',  // Assault
+              'rgba(81, 207, 102, 0.7)'   // Fraud
+            ],
+            borderColor: [
+              'rgba(255, 107, 107, 1)',
+              'rgba(77, 171, 247, 1)',
+              'rgba(255, 202, 75, 1)',
+              'rgba(81, 207, 102, 1)'
+            ],
+            borderWidth: 1
+          }]
+        },
+        options: {
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: 'Number of FIRs',
+                font: { size: 14, family: 'Poppins', weight: '600' },
+                color: '#1e3a8a'
+              },
+              ticks: { color: '#64748b' }
+            },
+            x: {
+              title: {
+                display: true,
+                text: 'Crime Type',
+                font: { size: 14, family: 'Poppins', weight: '600' },
+                color: '#1e3a8a'
+              },
+              ticks: { color: '#64748b' }
+            }
+          },
+          plugins: {
+            legend: {
+              display: false
+            }
+          }
+        }
+      });
+
+      // Update location insights
+      const hotspots = getCrimeHotspots(data);
+      const tableBody = document.getElementById('insights-table-body');
+      tableBody.innerHTML = ''; // Clear existing rows
+      hotspots.forEach(hotspot => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${hotspot.location}</td>
+          <td>${hotspot.totalFirs}</td>
+          <td>${hotspot.dominantCrime}</td>
+        `;
+        tableBody.appendChild(row);
+      });
+    }
+
+    // Initial render with dummy data
+    updateVisualizations(firData);
+
+    // Polling function to check for new data every 30 seconds
+    function pollForNewData() {
+      // Uncomment this to fetch from your API
+      /*
+      fetch('/api/firs')
+        .then(response => response.json())
+        .then(data => {
+          // Check if the data has changed (e.g., by comparing length or a timestamp)
+          if (data.length !== previousDataLength) {
+            previousDataLength = data.length;
+            updateVisualizations(data);
+          }
+        })
+        .catch(error => console.error('Error fetching FIR data:', error));
+      */
+
+      // For demo purposes, simulate a new data point being added every 30 seconds
+      setTimeout(() => {
+        firData.push({
+          lat: 17.3860 + (Math.random() - 0.5) * 0.01,
+          lng: 78.4867 + (Math.random() - 0.5) * 0.01,
+          intensity: 1,
+          crimeType: crimeTypes[Math.floor(Math.random() * crimeTypes.length)]
+        });
+        previousDataLength = firData.length;
+        updateVisualizations(firData);
+      }, 30000);
+    }
+
+    // Start polling (for demo purposes, using the dummy data)
+    setInterval(pollForNewData, 30000);
+
+    // Uncomment the fetch block above and remove the setTimeout block to use real API polling
+  </script>
+</body>
+</html>

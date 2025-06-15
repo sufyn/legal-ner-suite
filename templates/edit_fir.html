@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit FIR Template</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet">
+          <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+
+    <style>
+        body {
+            background: linear-gradient(135deg, #cfd1df 0%, #32326b 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .container { margin-top: 30px; }
+        .animate__fadeIn { animation: fadeIn 1s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .highlighted-text { background: #fff; color: #333; padding: 15px; border-radius: 5px; }
+        .ql-container { min-height: 200px; }
+        #pdf-preview { height: 600px; width: 100%; }
+        .error { color: #ff4d4d; }
+    </style>
+</head>
+<body>
+        <nav class="navbar">
+       <a href="index.html" class="logo">
+            <i class="fas fa-balance-scale"></i>
+            LEGAL NER SUITE
+       </a>
+        <div class="nav-links">
+            <!-- <a href="login.html">Login</a> -->
+
+      {% if current_user.is_authenticated %}
+        <a class="btn-getstarted" href="{{ url_for('logout') }}">Logout</a>
+      {% else %}
+        <a class="btn-getstarted" href="{{ url_for('login') }}">Login</a>
+      {% endif %}
+
+            <a href="{{ url_for('ner') }}" class="btn">Home</a>
+        </div>
+    </nav>
+    <div class="container animate__fadeIn">
+        <h1 class="text-center mb-4">Edit FIR Template</h1>
+        <div class="card p-4" style="background: #ffffff; color: #333;">
+            {% if error %}
+                <p class="error">{{ error }}</p>
+            {% endif %}
+            <h3>PDF Preview</h3>
+            <iframe id="pdf-preview" src="{{ pdf_href }}"></iframe>
+            <hr>
+            <h3>Edit FIR Template</h3>
+            <form id="fir-form" action="/finalize_fir" method="POST">
+                <input type="hidden" name="record_id" value="{{ record_id }}">
+                <input type="hidden" name="results" value="{{ results | tojson | safe }}">
+                <input type="hidden" name="highlighted_text" value="{{ highlighted_text | safe }}">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="petitioner" class="form-label">Petitioner</label>
+                        <input type="text" class="form-control" id="petitioner" name="petitioner" value="{{ fir_template.Petitioner }}">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="address" class="form-label">Address</label>
+                        <input type="text" class="form-control" id="address" name="address" value="N/A">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="organization" class="form-label">Organization</label>
+                        <input type="text" class="form-control" id="organization" name="organization" value="{{ fir_template.Organization }}">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="date" class="form-label">Date of Incident</label>
+                        <input type="text" class="form-control" id="date" name="date" value="{{ fir_template.Date }}">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="place" class="form-label">Place of Incident</label>
+                        <input type="text" class="form-control" id="place" name="place" value="{{ fir_template.Place }}">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="court" class="form-label">Court</label>
+                        <select class="form-select" id="court" name="court">
+                            {% for option in court_options %}
+                                <option value="{{ option }}" {% if option == fir_template.Court %}selected{% endif %}>{{ option }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="accused" class="form-label">Accused</label>
+                        <input type="text" class="form-control" id="accused" name="accused" value="{{ fir_template.Accused }}">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="offense" class="form-label">Offense/Statute</label>
+                        <select class="form-select" id="offense" name="offense">
+                            {% for option in bns_options %}
+                                <option value="{{ option }}" {% if option == fir_template.Offense %}selected{% endif %}>{{ option }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="provision" class="form-label">Provision</label>
+                        <input type="text" class="form-control" id="provision" name="provision" value="{{ fir_template.Provision }}">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="case_number" class="form-label">Case Number</label>
+                        <input type="text" class="form-control" id="case_number" name="case_number" value="{{ fir_template.CaseNumber }}">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="precedent" class="form-label">Precedent</label>
+                        <input type="text" class="form-control" id="precedent" name="precedent" value="{{ fir_template.Precedent }}">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="judge" class="form-label">Judge</label>
+                        <input type="text" class="form-control" id="judge" name="judge" value="{{ fir_template.Judge }}">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="lawyer" class="form-label">Lawyer</label>
+                        <input type="text" class="form-control" id="lawyer" name="lawyer" value="{{ fir_template.Lawyer }}">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="witness" class="form-label">Witness</label>
+                        <div id="witness-container">
+                            <input type="text" class="form-control mb-2" name="witness" value="{{ fir_template.Witness }}">
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addField('witness')">Add Witness</button>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="other_person" class="form-label">Other Person</label>
+                        <div id="other-person-container">
+                            <input type="text" class="form-control mb-2" name="other_person" value="{{ fir_template.OtherPerson }}">
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addField('other_person')">Add Other Person</button>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label for="description" class="form-label">Description</label>
+                    <div id="description-editor">{{ fir_template.Description | safe }}</div>
+                    <input type="hidden" id="description" name="description">
+                </div>
+                <button type="submit" class="btn btn-primary">Save and Finalize</button>
+                <a href="{{ json_href }}" download="ner_results.json" class="btn btn-primary">Download JSON</a>
+                <a href="{{ pdf_href }}" download="fir_template.pdf" class="btn btn-primary">Download PDF</a>
+                <a href="/ner" class="btn btn-secondary">Back</a>
+            </form>
+            <h3>Extracted Entities</h3>
+            <ul>
+                {% for result in results %}
+                    <li><strong>{{ result.entity_group }}</strong>: {{ result.word }} (Score: {{ '%.2f' % result.score }})</li>
+                {% endfor %}
+            </ul>
+            {% if highlighted_text %}
+                <h3>Highlighted Text</h3>
+                <div class="highlighted-text">{{ highlighted_text | safe }}</div>
+            {% endif %}
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js"></script>
+    <script>
+        const quill = new Quill('#description-editor', {
+            theme: 'snow',
+            modules: {
+                toolbar: [
+                    ['bold', 'italic', 'underline'],
+                    ['link', 'blockquote'],
+                    [{ 'list': 'ordered' }, { 'list': 'bullet' }]
+                ]
+            }
+        });
+        document.getElementById('fir-form').onsubmit = function() {
+            document.getElementById('description').value = quill.root.innerHTML;
+        };
+        function addField(fieldName) {
+            const container = document.getElementById(`${fieldName}-container`);
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'form-control mb-2';
+            input.name = fieldName;
+            container.appendChild(input);
+        }
+    </script>
+</body>
+</html>
